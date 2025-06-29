@@ -15,7 +15,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import {AxiosResponse} from "axios";
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {Card, CardContent} from "@/components/ui/card";
 import Link from "next/link";
 import {redirect, usePathname, useRouter, useSearchParams} from "next/navigation";
 import {XIcon} from "lucide-react";
