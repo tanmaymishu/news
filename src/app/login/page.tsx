@@ -9,9 +9,11 @@ import {AuthContext} from "@/contexts/auth-context";
 import {Checkbox} from "@/components/ui/checkbox";
 import Image from "next/image";
 import Link from "next/link";
+import {cn} from "@/lib/utils";
 
 function LoginPage() {
   const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
   const [errors, setErrors] = useState({
@@ -22,12 +24,16 @@ function LoginPage() {
 
   async function handleLogin(e: FormEvent) {
     e.preventDefault();
+    setLoading(true);
+
     try {
       await logIn(email, password, remember);
     } catch (e: unknown) {
       if (isAxiosError(e) && e.status === 422) {
         setErrors(e.response?.data.errors);
       }
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -55,6 +61,7 @@ function LoginPage() {
                 <div className="space-y-2">
                   <Label className="text-sm sm:text-base">E-mail</Label>
                   <Input
+                    required={true}
                     type="email"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
@@ -68,6 +75,7 @@ function LoginPage() {
                 <div className="space-y-2">
                   <Label className="text-sm sm:text-base">Password</Label>
                   <Input
+                    required={true}
                     type="password"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
@@ -79,11 +87,11 @@ function LoginPage() {
                 </div>
 
                 <Label className="cursor-pointer flex items-center gap-2 text-sm sm:text-base">
-                  <Checkbox onClick={e => setRemember(!!e.currentTarget.ariaChecked)} />
+                  <Checkbox onClick={e => setRemember(!!e.currentTarget.ariaChecked)}/>
                   Remember Me
                 </Label>
 
-                <Button className="w-full mt-2 text-sm sm:text-base py-2 sm:py-3">
+                <Button className={cn("w-full mt-2 text-sm sm:text-base py-2 sm:py-3")} disabled={loading}>
                   Login
                 </Button>
               </form>

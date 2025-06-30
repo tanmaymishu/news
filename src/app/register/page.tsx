@@ -13,6 +13,7 @@ import Image from "next/image";
 
 function RegisterPage() {
   const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
@@ -27,6 +28,8 @@ function RegisterPage() {
 
   async function handleRegister(e: FormEvent) {
     e.preventDefault();
+    setLoading(true);
+
     try {
       const response = await axios.post('/api/v1/register', {
         name,
@@ -42,6 +45,8 @@ function RegisterPage() {
       if (isAxiosError(e) && e.status === 422) {
         setErrors(e.response?.data.errors);
       }
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -69,6 +74,7 @@ function RegisterPage() {
                 <div className="space-y-2">
                   <Label className="text-sm sm:text-base">Name</Label>
                   <Input
+                    required={true}
                     type="text"
                     value={name}
                     onChange={e => setName(e.target.value)}
@@ -82,6 +88,7 @@ function RegisterPage() {
                 <div className="space-y-2">
                   <Label className="text-sm sm:text-base">E-mail</Label>
                   <Input
+                    required={true}
                     type="email"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
@@ -95,6 +102,7 @@ function RegisterPage() {
                 <div className="space-y-2">
                   <Label className="text-sm sm:text-base">Password</Label>
                   <Input
+                    required={true}
                     type="password"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
@@ -108,6 +116,7 @@ function RegisterPage() {
                 <div className="space-y-2">
                   <Label className="text-sm sm:text-base">Confirm Password</Label>
                   <Input
+                    required={true}
                     type="password"
                     value={passwordConfirmation}
                     onChange={e => setPasswordConfirmation(e.target.value)}
@@ -118,7 +127,7 @@ function RegisterPage() {
                   )}
                 </div>
 
-                <Button className="w-full mt-2 text-sm sm:text-base py-2 sm:py-3">
+                <Button className="w-full mt-2 text-sm sm:text-base py-2 sm:py-3" disabled={loading}>
                   Register
                 </Button>
               </form>
