@@ -57,7 +57,7 @@ function AuthContextProvider({children}: { children: React.ReactNode }) {
       setUser(userData);
       setIsLoggedIn(true);
     } catch (e: unknown) {
-      // Only clear auth state, don't show error for expected auth failures
+      console.log((e as Error).message);
       if (typeof window !== 'undefined') {
         localStorage.removeItem('user');
       }
