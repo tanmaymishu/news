@@ -1,6 +1,6 @@
 'use client'
 
-import React, {useCallback, useContext, useEffect, useState} from 'react';
+import React, {useContext, useEffect, useState} from 'react';
 import {AuthContext} from "@/contexts/auth-context";
 import {Button} from "@/components/ui/button";
 import axios from "@/lib/axios";
@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/select";
 import {AxiosResponse} from "axios";
 import {Card, CardContent} from "@/components/ui/card";
-import Link from "next/link";
 import {redirect, usePathname, useRouter, useSearchParams} from "next/navigation";
 import {XIcon} from "lucide-react";
 import Head from "next/head";
@@ -26,13 +25,15 @@ import Image from "next/image";
 const baseUrl = `/api/v1/articles`;
 
 function DashboardPage() {
-  const {isLoggedIn, user, logOut} = useContext(AuthContext);
+  const queryStrings = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const {isLoggedIn, user, logOut, loading} = useContext(AuthContext);
 
   if (!isLoggedIn) {
     redirect('/login');
   }
 
-  const queryStrings = useSearchParams();
   const [sources, setSources] = useState<Source[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [authors, setAuthors] = useState<Author[]>([]);
@@ -41,39 +42,12 @@ function DashboardPage() {
   const [selectedCategory, setSelectedCategory] = useState(queryStrings.get('category') ?? '');
   const [selectedAuthor, setSelectedAuthor] = useState(queryStrings.get('author') ?? '');
   const [keyword, setKeyword] = useState(queryStrings.get('keyword') ?? '');
+  const [page, setPage] = useState(queryStrings.get('page') ?? 1);
   const [queryString, setQueryString] = useState(`?keyword=${keyword}&source=${selectedSource}&category=${selectedCategory}&author=${selectedAuthor}`);
   const [url, setUrl] = useState(baseUrl + queryString);
+  const [paginating, setPaginating] = useState(false);
 
-  const pathname = usePathname();
-  const router = useRouter();
-
-  useEffect(() => {
-    fetchInitialData();
-  }, [])
-
-  useEffect(() => {
-    fetchArticles();
-  }, [url])
-
-  useEffect(() => {
-    if (selectedSource === '-') {
-      setSelectedSource(() => '')
-    }
-
-    if (selectedCategory === '-') {
-      setSelectedCategory(() => '')
-    }
-
-    if (selectedAuthor === '-') {
-      setSelectedAuthor(() => '')
-    }
-
-    setQueryString(() => `?keyword=${keyword}&source=${selectedSource}&category=${selectedCategory}&author=${selectedAuthor}`);
-    setUrl(() => baseUrl + queryString);
-    router.push(pathname + queryString);
-  }, [keyword, queryString, selectedSource, selectedCategory, selectedAuthor, pathname, router])
-
-  const fetchInitialData = useCallback(async () => {
+  const fetchInitialData = async () => {
     const [
       {data: sources},
       {data: categories},
@@ -91,12 +65,55 @@ function DashboardPage() {
     setSources(sources.data.filter(s => Boolean(s.name)));
     setCategories(categories.data.filter(c => Boolean(c.name)));
     setAuthors(authors.data.filter(a => Boolean(a.name)));
-  }, [isLoggedIn]);
+  };
 
-  const fetchArticles = useCallback(async () => {
+  const fetchArticles = async () => {
     const response: AxiosResponse<JsonResource<Article>> = await axios.get(url);
+    response.data.data = response.data.data.map(a => {
+      return a.featured_image_url ? a : {...a, featured_image_url: 'https://placehold.co/600x400/png'};
+    });
     setArticles(response.data);
-  }, [url, isLoggedIn])
+  }
+
+
+  useEffect(() => {
+    fetchInitialData();
+  }, [])
+
+  useEffect(() => {
+    fetchArticles().then(() => {
+      setPaginating(false);
+    });
+  }, [url])
+
+  useEffect(() => {
+
+    if (selectedSource === '-') {
+      setSelectedSource(() => '')
+    }
+
+    if (selectedCategory === '-') {
+      setSelectedCategory(() => '')
+    }
+
+    if (selectedAuthor === '-') {
+      setSelectedAuthor(() => '')
+    }
+
+    setQueryString(() => `?keyword=${keyword}&source=${selectedSource}&category=${selectedCategory}&author=${selectedAuthor}&page=${page}`);
+    setUrl(() => baseUrl + queryString);
+    router.push(pathname + queryString);
+  }, [keyword, queryString, selectedSource, selectedCategory, page, selectedAuthor, pathname, router])
+
+  // Show loading state while auth is being determined
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  // The AuthContext should handle redirects, but you can add a safeguard
+  if (!isLoggedIn || !user) {
+    return <div>Redirecting to login...</div>;
+  }
 
   return (
     isLoggedIn &&
@@ -106,7 +123,8 @@ function DashboardPage() {
       </Head>
 
       {/* Header */}
-      <div className="flex border-b py-2 sm:py-4 px-4 items-center justify-between shadow sticky top-0 w-full bg-white z-50">
+      <div
+        className="flex border-b py-2 sm:py-4 px-4 items-center justify-between shadow sticky top-0 w-full bg-white z-50">
         <div className="flex items-center">
           <Image
             src="logo.svg"
@@ -294,19 +312,21 @@ function DashboardPage() {
         <div className="max-w-6xl mx-auto">
           {/* Pagination */}
           {articles && (
-            <section className="flex gap-2 mb-4">
+            <section className="flex gap-2 justify-center mb-4">
               {articles.links.prev && (
-                <Button size="sm" asChild>
-                  <Link href={`${window.location.toString().replace('&page=', '')}&page=` + articles.links.prev.split('page=')[1]}>
-                    Prev
-                  </Link>
+                <Button size="sm" onClick={() => {
+                  setPaginating(true);
+                  setPage(Number(articles?.links?.prev?.split('page=')[1]))
+                }} disabled={paginating}>
+                  Prev
                 </Button>
               )}
               {articles.links.next && (
-                <Button size="sm" asChild>
-                  <Link href={`${window.location.toString().replace('&page=', '')}&page=` + articles.links.next.split('page=')[1]}>
-                    Next
-                  </Link>
+                <Button size="sm" onClick={() => {
+                  setPaginating(true);
+                  setPage(Number(articles?.links?.next?.split('page=')[1]))
+                }} disabled={paginating}>
+                  Next
                 </Button>
               )}
             </section>
@@ -326,10 +346,11 @@ function DashboardPage() {
                         className="w-full h-48 object-cover rounded-md"
                       />
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <Button variant="link" asChild className="text-gray-600 p-0 h-auto text-left text-base font-medium">
-                        <a href={a.web_url} target="_blank" className="line-clamp-3">
-                          {a.title}
+                    <div className="flex flex-col gap-2 flex-1 min-w-0">
+                      <Button variant="link" asChild
+                              className="text-gray-600 p-0 h-auto text-lg md:text-xl text-left font-medium justify-start">
+                        <a href={a.web_url} target="_blank" className="line-clamp-2 text-left">
+                          {a.title.slice(0, 80)}...
                         </a>
                       </Button>
                       <div className="text-xs text-gray-500 italic">
@@ -350,9 +371,10 @@ function DashboardPage() {
                         className="w-32 md:w-36 lg:w-40 h-24 md:h-28 lg:h-32 object-cover rounded-md"
                       />
                     </div>
-                    <div className="flex flex-col gap-2 flex-1 min-w-0">
-                      <Button variant="link" asChild className="text-gray-600 p-0 h-auto text-left text-lg md:text-xl font-medium">
-                        <a href={a.web_url} target="_blank" className="line-clamp-2">
+                    <div className="flex flex-col gap-2 flex-1 min-w-0 items-start">
+                      <Button variant="link" asChild
+                              className="text-gray-600 p-0 h-auto text-lg md:text-xl text-left font-medium justify-start">
+                        <a href={a.web_url} target="_blank" className="line-clamp-2 text-left">
                           {a.title.slice(0, 80)}...
                         </a>
                       </Button>

@@ -1,9 +1,8 @@
 'use client';
 
-import React, {createContext, useEffect, useState} from "react";
+import React, {createContext, useEffect, useState, useRef} from "react";
 import axios from "@/lib/axios";
 import {usePathname, useRouter} from "next/navigation";
-import {toast} from "sonner";
 
 export interface MeResponse {
   data: User;
@@ -32,12 +31,9 @@ export const AuthContext = createContext<AuthContextType>({
   loading: true,
   isLoggedIn: false,
   user: null,
-  fetchUser: async () => {
-  },
-  logIn: async () => {
-  },
-  logOut: async () => {
-  },
+  fetchUser: async () => {},
+  logIn: async () => {},
+  logOut: async () => {},
 });
 
 function AuthContextProvider({children}: { children: React.ReactNode }) {
@@ -47,18 +43,24 @@ function AuthContextProvider({children}: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Use ref to track if logout is in progress
+  const isLoggingOut = useRef(false);
+
   const fetchUser = async () => {
     try {
-      if (localStorage.getItem('user')) {
-        setUser(JSON.parse(localStorage.getItem('user')!))
-      } else {
-        const response = await axios.get('/api/v1/me');
-        localStorage.setItem('user', JSON.stringify(response.data.data))
-        setUser(response.data.data);
+      const response = await axios.get('/api/v1/me');
+
+      const userData = response.data.data;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('user', JSON.stringify(userData));
       }
+      setUser(userData);
       setIsLoggedIn(true);
     } catch (e: unknown) {
-      toast.error((e as Error).message);
+      // Only clear auth state, don't show error for expected auth failures
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('user');
+      }
       setUser(null);
       setIsLoggedIn(false);
     } finally {
@@ -66,40 +68,53 @@ function AuthContextProvider({children}: { children: React.ReactNode }) {
     }
   };
 
-  const logIn = async (email: string, password: string, remember = false) => {
-    await axios.get('/sanctum/csrf-cookie');
-    await axios.post('/api/v1/login', {email, password, remember});
-    await fetchUser();
-    router.push('/dashboard');
-  }
-
-  const logOut = async () => {
-    await axios.delete('/api/v1/logout').then(() => {
-      localStorage.removeItem('user');
-      fetchUser();
-    });
-  }
-
   useEffect(() => {
     fetchUser();
   }, []);
 
-  useEffect(() => {
-    if (isLoggedIn && user && (pathname === '/login' || pathname === '/register')) {
-      router.push('/dashboard');
+  const logIn = async (email: string, password: string, remember = false) => {
+    try {
+      await axios.get('/sanctum/csrf-cookie');
+      await axios.post('/api/v1/login', {email, password, remember});
+      await fetchUser();
+      router.replace('/dashboard');
+    } catch (error) {
+      throw error; // Re-throw so the login form can handle it
+    }
+  }
+
+  const logOut = async () => {
+    try {
+      await axios.delete('/api/v1/logout');
+    } catch (error) {
+      console.error('Logout request failed:', error);
     }
 
-    if (!loading && !user) {
-      if (pathname === '/register') {
-        router.push(pathname);
-      } else {
-        router.push('/login');
-      }
+    // Clear state
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('user');
     }
-  }, [loading, user, isLoggedIn, pathname, router]);
+    setUser(null);
+    setIsLoggedIn(false);
+
+    // Use window.location instead of router to avoid React hooks issues during logout
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
+  };
+
+  // Only handle redirecting authenticated users from auth pages
+  useEffect(() => {
+    if (loading || isLoggingOut.current) return;
+
+    // Only redirect authenticated users away from login/register pages
+    if (isLoggedIn && user && (pathname === '/login' || pathname === '/register')) {
+      router.replace('/dashboard');
+    }
+  }, [loading, isLoggedIn, user, pathname, router]);
 
   if (loading) {
-    return <></>
+    return <></>; // We can render some progress bar later
   }
 
   return (
