@@ -24,6 +24,11 @@ export interface ResponseData<T> {
   message: string;
 }
 
+export interface ResponseDataSingle<T> {
+  data: T;
+  message: string;
+}
+
 export interface Source {
   name: string;
   created_at: string;
@@ -54,4 +59,11 @@ export interface Article {
   published_at: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface Preference {
+  user_id: number;
+  sources: string[];
+  categories: string[];
+  authors: string[];
 }

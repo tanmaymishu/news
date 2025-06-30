@@ -1,6 +1,6 @@
 'use client'
 
-import React, {useContext, useEffect, useState} from 'react';
+import React, {useContext, useEffect, useState, useCallback, useMemo} from 'react';
 import {AuthContext} from "@/contexts/auth-context";
 import {Button} from "@/components/ui/button";
 import axios from "@/lib/axios";
@@ -20,287 +20,362 @@ import {redirect, usePathname, useRouter, useSearchParams} from "next/navigation
 import {XIcon} from "lucide-react";
 import Head from "next/head";
 import {Input} from "@/components/ui/input";
-import Image from "next/image";
+import Navbar from "@/components/navbar";
 
 const baseUrl = `/api/v1/articles`;
 
-function DashboardPage() {
-  const queryStrings = useSearchParams();
+// Custom hook for debouncing
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+// Custom hook for URL state management
+function useUrlState() {
+  const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
-  const {isLoggedIn, user, logOut, loading} = useContext(AuthContext);
 
-  if (!isLoggedIn) {
-    redirect('/login');
-  }
+  const filters = useMemo(() => ({
+    keyword: searchParams.get('keyword') ?? '',
+    source: searchParams.get('source') ?? '',
+    category: searchParams.get('category') ?? '',
+    author: searchParams.get('author') ?? '',
+    page: parseInt(searchParams.get('page') ?? '1', 10)
+  }), [searchParams]);
 
+  const updateUrl = useCallback((newFilters: Partial<typeof filters>) => {
+    const params = new URLSearchParams();
+
+    const updatedFilters = {...filters, ...newFilters};
+
+    // Only add non-empty values to URL
+    if (updatedFilters.keyword) params.set('keyword', updatedFilters.keyword);
+    if (updatedFilters.source) params.set('source', updatedFilters.source);
+    if (updatedFilters.category) params.set('category', updatedFilters.category);
+    if (updatedFilters.author) params.set('author', updatedFilters.author);
+    if (updatedFilters.page > 1) params.set('page', updatedFilters.page.toString());
+
+    const queryString = params.toString();
+    const newUrl = queryString ? `${pathname}?${queryString}` : pathname;
+
+    router.push(newUrl, {scroll: false});
+  }, [filters, pathname, router]);
+
+  return {filters, updateUrl};
+}
+
+function DashboardPage() {
+  const {isLoggedIn, user, loading} = useContext(AuthContext);
+  const {filters, updateUrl} = useUrlState();
+
+  // Local state for immediate UI updates (before debouncing)
+  const [localKeyword, setLocalKeyword] = useState(filters.keyword);
+  const [localSource, setLocalSource] = useState(filters.source);
+  const [localCategory, setLocalCategory] = useState(filters.category);
+  const [localAuthor, setLocalAuthor] = useState(filters.author);
+
+  // Debounced keyword for API calls
+  const debouncedKeyword = useDebounce(localKeyword, 500);
+
+  // Data state
   const [sources, setSources] = useState<Source[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [authors, setAuthors] = useState<Author[]>([]);
   const [articles, setArticles] = useState<JsonResource<Article>>();
-  const [selectedSource, setSelectedSource] = useState(queryStrings.get('source') ?? '');
-  const [selectedCategory, setSelectedCategory] = useState(queryStrings.get('category') ?? '');
-  const [selectedAuthor, setSelectedAuthor] = useState(queryStrings.get('author') ?? '');
-  const [keyword, setKeyword] = useState(queryStrings.get('keyword') ?? '');
-  const [page, setPage] = useState(queryStrings.get('page') ?? 1);
-  const [queryString, setQueryString] = useState(`?keyword=${keyword}&source=${selectedSource}&category=${selectedCategory}&author=${selectedAuthor}`);
-  const [url, setUrl] = useState(baseUrl + queryString);
+  const [isLoadingArticles, setIsLoadingArticles] = useState(false);
   const [paginating, setPaginating] = useState(false);
 
-  const fetchInitialData = async () => {
-    const [
-      {data: sources},
-      {data: categories},
-      {data: authors},
-    ]: [
-      AxiosResponse<ResponseData<Source>>,
-      AxiosResponse<ResponseData<Category>>,
-      AxiosResponse<ResponseData<Author>>,
-    ] = await Promise.all([
-      axios.get('/api/v1/sources'),
-      axios.get('/api/v1/categories'),
-      axios.get('/api/v1/authors'),
-    ]);
+  // Sync local state with URL when URL changes (browser back/forward)
+  useEffect(() => {
+    setLocalKeyword(filters.keyword);
+    setLocalSource(filters.source);
+    setLocalCategory(filters.category);
+    setLocalAuthor(filters.author);
+  }, [filters]);
 
-    setSources(sources.data.filter(s => Boolean(s.name)));
-    setCategories(categories.data.filter(c => Boolean(c.name)));
-    setAuthors(authors.data.filter(a => Boolean(a.name)));
-  };
+  // Update URL when filters change (debounced for keyword)
+  useEffect(() => {
+    if (debouncedKeyword !== filters.keyword) {
+      updateUrl({keyword: debouncedKeyword, page: 1});
+    }
+  }, [debouncedKeyword, filters.keyword, updateUrl]);
 
-  const fetchArticles = async () => {
-    const response: AxiosResponse<JsonResource<Article>> = await axios.get(url);
-    response.data.data = response.data.data.map(a => {
-      return a.featured_image_url ? a : {...a, featured_image_url: 'https://placehold.co/600x400/png'};
-    });
-    setArticles(response.data);
-  }
+  // Memoized API URL
+  const apiUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    if (filters.keyword) params.set('keyword', filters.keyword);
+    if (filters.source) params.set('source', filters.source);
+    if (filters.category) params.set('category', filters.category);
+    if (filters.author) params.set('author', filters.author);
+    if (filters.page > 1) params.set('page', filters.page.toString());
 
+    return `${baseUrl}?${params.toString()}`;
+  }, [filters]);
 
+  // Fetch initial data (memoized to prevent unnecessary re-fetches)
+  const fetchInitialData = useCallback(async () => {
+    try {
+      const [
+        {data: sources},
+        {data: categories},
+        {data: authors},
+      ]: [
+        AxiosResponse<ResponseData<Source>>,
+        AxiosResponse<ResponseData<Category>>,
+        AxiosResponse<ResponseData<Author>>,
+      ] = await Promise.all([
+        axios.get('/api/v1/sources'),
+        axios.get('/api/v1/categories'),
+        axios.get('/api/v1/authors'),
+      ]);
+
+      setSources(sources.data.filter(s => Boolean(s.name)));
+      setCategories(categories.data.filter(c => Boolean(c.name)));
+      setAuthors(authors.data.filter(a => Boolean(a.name)));
+    } catch (error) {
+      console.error('Failed to fetch initial data:', error);
+    }
+  }, []);
+
+  // Fetch articles
+  const fetchArticles = useCallback(async () => {
+    setIsLoadingArticles(true);
+    try {
+      const response: AxiosResponse<JsonResource<Article>> = await axios.get(apiUrl);
+      response.data.data = response.data.data.map(a => {
+        return a.featured_image_url ? a : {...a, featured_image_url: 'https://placehold.co/600x400/png'};
+      });
+      setArticles(response.data);
+    } catch (error) {
+      console.error('Failed to fetch articles:', error);
+    } finally {
+      setIsLoadingArticles(false);
+      setPaginating(false);
+    }
+  }, [apiUrl]);
+
+  // Filter change handlers
+  const handleSourceChange = useCallback((value: string) => {
+    const newValue = value === '-' ? '' : value;
+    setLocalSource(newValue);
+    updateUrl({source: newValue, page: 1});
+  }, [updateUrl]);
+
+  const handleCategoryChange = useCallback((value: string) => {
+    const newValue = value === '-' ? '' : value;
+    setLocalCategory(newValue);
+    updateUrl({category: newValue, page: 1});
+  }, [updateUrl]);
+
+  const handleAuthorChange = useCallback((value: string) => {
+    const newValue = value === '-' ? '' : value;
+    setLocalAuthor(newValue);
+    updateUrl({author: newValue, page: 1});
+  }, [updateUrl]);
+
+  const handleKeywordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalKeyword(e.target.value);
+  }, []);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setPaginating(true);
+    updateUrl({page: newPage});
+  }, [updateUrl]);
+
+  // Effects
   useEffect(() => {
     fetchInitialData();
-  }, [])
+  }, [fetchInitialData]);
 
   useEffect(() => {
-    fetchArticles().then(() => {
-      setPaginating(false);
-    });
-  }, [url])
+    fetchArticles();
+  }, [fetchArticles]);
 
-  useEffect(() => {
+  // Auth redirects
+  if (!isLoggedIn) {
+    redirect('/login');
+  }
 
-    if (selectedSource === '-') {
-      setSelectedSource(() => '')
-    }
-
-    if (selectedCategory === '-') {
-      setSelectedCategory(() => '')
-    }
-
-    if (selectedAuthor === '-') {
-      setSelectedAuthor(() => '')
-    }
-
-    setQueryString(() => `?keyword=${keyword}&source=${selectedSource}&category=${selectedCategory}&author=${selectedAuthor}&page=${page}`);
-    setUrl(() => baseUrl + queryString);
-    router.push(pathname + queryString);
-  }, [keyword, queryString, selectedSource, selectedCategory, page, selectedAuthor, pathname, router])
-
-  // Show loading state while auth is being determined
   if (loading) {
     return <div>Loading...</div>;
   }
 
-  // The AuthContext should handle redirects, but you can add a safeguard
   if (!isLoggedIn || !user) {
     return <div>Redirecting to login...</div>;
   }
 
   return (
-    isLoggedIn &&
     <>
       <Head>
         <title>Dashboard</title>
       </Head>
-
       {/* Header */}
-      <div
-        className="flex border-b py-2 sm:py-4 px-4 items-center justify-between shadow sticky top-0 w-full bg-white z-50">
-        <div className="flex items-center">
-          <Image
-            src="logo.svg"
-            alt={"NewsFlow Logo"}
-            width={180}
-            height={5}
-            className="w-24 sm:w-32 md:w-40 lg:w-44 h-auto"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <section className="hidden sm:block text-sm md:text-base">{user?.email}</section>
-          <section>
-            <Button
-              variant="link"
-              className="text-red-500 text-xs sm:text-sm p-1 sm:p-2"
-              onClick={logOut}
-            >
-              Log Out
-            </Button>
-          </section>
-        </div>
-      </div>
-
+      <Navbar user={user}/>
       {/* Filters */}
       <div className="px-4 py-4">
         <div className="max-w-6xl mx-auto">
           {/* Mobile: Stacked filters */}
           <div className="flex flex-col gap-3 sm:hidden">
             <div className="grid grid-cols-2 gap-2">
-              <Select onValueChange={v => setSelectedSource(v)} value={selectedSource}>
+              <Select onValueChange={handleSourceChange} value={localSource}>
                 <SelectTrigger className="text-xs">
                   <SelectValue placeholder="Source"/>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
                     <SelectLabel>Sources</SelectLabel>
-                    {selectedSource &&
-                      <SelectItem value={"-"} className="flex justify-between cursor-pointer">
+                    {localSource && (
+                      <SelectItem value="-" className="flex justify-between cursor-pointer">
                         <p>Clear Selection</p>
                         <XIcon className="w-3 h-3"/>
                       </SelectItem>
-                    }
-                    {sources.map(source =>
+                    )}
+                    {sources.map(source => (
                       <SelectItem className="cursor-pointer" key={source.name} value={source.name}>
                         {source.name}
                       </SelectItem>
-                    )}
+                    ))}
                   </SelectGroup>
                 </SelectContent>
               </Select>
 
-              <Select onValueChange={v => setSelectedCategory(v)} value={selectedCategory}>
+              <Select onValueChange={handleCategoryChange} value={localCategory}>
                 <SelectTrigger className="text-xs">
                   <SelectValue placeholder="Category"/>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
                     <SelectLabel>Categories</SelectLabel>
-                    {selectedCategory &&
-                      <SelectItem value={"-"} className="flex justify-between cursor-pointer">
+                    {localCategory && (
+                      <SelectItem value="-" className="flex justify-between cursor-pointer">
                         <p>Clear Selection</p>
                         <XIcon className="w-3 h-3"/>
                       </SelectItem>
-                    }
-                    {categories.map(category =>
+                    )}
+                    {categories.map(category => (
                       <SelectItem className="cursor-pointer" key={category.name} value={category.name}>
                         {category.name}
                       </SelectItem>
-                    )}
+                    ))}
                   </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
 
-            <Select onValueChange={v => setSelectedAuthor(v)} value={selectedAuthor}>
+            <Select onValueChange={handleAuthorChange} value={localAuthor}>
               <SelectTrigger className="text-xs">
                 <SelectValue placeholder="Select an author"/>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
                   <SelectLabel>Authors</SelectLabel>
-                  {selectedAuthor &&
-                    <SelectItem value={"-"} className="flex justify-between cursor-pointer">
+                  {localAuthor && (
+                    <SelectItem value="-" className="flex justify-between cursor-pointer">
                       <p>Clear Selection</p>
                       <XIcon className="w-3 h-3"/>
                     </SelectItem>
-                  }
-                  {authors.map(author =>
+                  )}
+                  {authors.map(author => (
                     <SelectItem className="cursor-pointer" key={author.name} value={author.name}>
                       {author.name}
                     </SelectItem>
-                  )}
+                  ))}
                 </SelectGroup>
               </SelectContent>
             </Select>
 
             <Input
               placeholder="Search with keyword..."
-              value={keyword}
-              onChange={e => setKeyword(e.target.value)}
+              value={localKeyword}
+              onChange={handleKeywordChange}
               className="text-sm"
             />
           </div>
 
           {/* Desktop: Horizontal filters */}
           <div className="hidden sm:flex gap-4 items-center">
-            <Select onValueChange={v => setSelectedSource(v)} value={selectedSource}>
+            <Select onValueChange={handleSourceChange} value={localSource}>
               <SelectTrigger className="w-[140px] md:w-[180px]">
                 <SelectValue placeholder="Select a source"/>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
                   <SelectLabel>Sources</SelectLabel>
-                  {selectedSource &&
-                    <SelectItem value={"-"} className="flex justify-between cursor-pointer">
+                  {localSource && (
+                    <SelectItem value="-" className="flex justify-between cursor-pointer">
                       <p>Clear Selection</p>
                       <XIcon className="w-4 h-4"/>
                     </SelectItem>
-                  }
-                  {sources.map(source =>
+                  )}
+                  {sources.map(source => (
                     <SelectItem className="cursor-pointer" key={source.name} value={source.name}>
                       {source.name}
                     </SelectItem>
-                  )}
+                  ))}
                 </SelectGroup>
               </SelectContent>
             </Select>
 
-            <Select onValueChange={v => setSelectedCategory(v)} value={selectedCategory}>
+            <Select onValueChange={handleCategoryChange} value={localCategory}>
               <SelectTrigger className="w-[140px] md:w-[180px]">
                 <SelectValue placeholder="Select a category"/>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
                   <SelectLabel>Categories</SelectLabel>
-                  {selectedCategory &&
-                    <SelectItem value={"-"} className="flex justify-between cursor-pointer">
+                  {localCategory && (
+                    <SelectItem value="-" className="flex justify-between cursor-pointer">
                       <p>Clear Selection</p>
                       <XIcon className="w-4 h-4"/>
                     </SelectItem>
-                  }
-                  {categories.map(category =>
+                  )}
+                  {categories.map(category => (
                     <SelectItem className="cursor-pointer" key={category.name} value={category.name}>
                       {category.name}
                     </SelectItem>
-                  )}
+                  ))}
                 </SelectGroup>
               </SelectContent>
             </Select>
 
-            <Select onValueChange={v => setSelectedAuthor(v)} value={selectedAuthor}>
+            <Select onValueChange={handleAuthorChange} value={localAuthor}>
               <SelectTrigger className="w-[140px] md:w-[180px]">
                 <SelectValue placeholder="Select an author"/>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
                   <SelectLabel>Authors</SelectLabel>
-                  {selectedAuthor &&
-                    <SelectItem value={"-"} className="flex justify-between cursor-pointer">
+                  {localAuthor && (
+                    <SelectItem value="-" className="flex justify-between cursor-pointer">
                       <p>Clear Selection</p>
                       <XIcon className="w-4 h-4"/>
                     </SelectItem>
-                  }
-                  {authors.map(author =>
+                  )}
+                  {authors.map(author => (
                     <SelectItem className="cursor-pointer" key={author.name} value={author.name}>
                       {author.name}
                     </SelectItem>
-                  )}
+                  ))}
                 </SelectGroup>
               </SelectContent>
             </Select>
 
             <Input
               placeholder="Search with keyword..."
-              value={keyword}
-              onChange={e => setKeyword(e.target.value)}
+              value={localKeyword}
+              onChange={handleKeywordChange}
               className="flex-1 max-w-xs"
             />
           </div>
@@ -313,83 +388,96 @@ function DashboardPage() {
           {/* Pagination */}
           {articles && (
             <section className="flex gap-2 justify-center mb-4">
-              {articles.links.prev && (
-                <Button size="sm" onClick={() => {
-                  setPaginating(true);
-                  setPage(Number(articles?.links?.prev?.split('page=')[1]))
-                }} disabled={paginating}>
-                  Prev
-                </Button>
-              )}
-              {articles.links.next && (
-                <Button size="sm" onClick={() => {
-                  setPaginating(true);
-                  setPage(Number(articles?.links?.next?.split('page=')[1]))
-                }} disabled={paginating}>
-                  Next
-                </Button>
-              )}
+              <Button
+                size="sm"
+                onClick={() => handlePageChange(Number(articles.links.prev?.split('page=')[1]))}
+                disabled={!articles.links.prev || paginating}
+              >
+                Prev Page
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handlePageChange(Number(articles.links.next?.split('page=')[1]))}
+                disabled={!articles.links.next || paginating}
+              >
+                Next Page
+              </Button>
             </section>
           )}
 
-          {/* Articles */}
-          <div className="flex flex-col gap-4">
-            {articles?.data.map(a => (
-              <Card key={a.web_url} className="rounded-lg overflow-hidden">
-                <CardContent className="p-4">
-                  {/* Mobile: Stacked layout */}
-                  <div className="flex flex-col gap-3 sm:hidden">
-                    <div className="w-full">
-                      <img
-                        src={a.featured_image_url}
-                        alt={a.title}
-                        className="w-full h-48 object-cover rounded-md"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2 flex-1 min-w-0">
-                      <Button variant="link" asChild
-                              className="text-gray-600 p-0 h-auto text-lg md:text-xl text-left font-medium justify-start">
-                        <a href={a.web_url} target="_blank" className="line-clamp-2 text-left">
-                          {a.title.slice(0, 80)}...
-                        </a>
-                      </Button>
-                      <div className="text-xs text-gray-500 italic">
-                        Published On: {new Date(a.published_at).toDateString()}
-                      </div>
-                      <div className="text-sm text-gray-700 line-clamp-3">
-                        <div dangerouslySetInnerHTML={{__html: a.content}}/>
-                      </div>
-                    </div>
-                  </div>
+          {/* Loading state */}
+          {isLoadingArticles && (
+            <div className="flex justify-center items-center py-8">
+              <div className="text-gray-500">Loading articles...</div>
+            </div>
+          )}
 
-                  {/* Desktop: Horizontal layout */}
-                  <div className="hidden sm:flex gap-4">
-                    <div className="flex-shrink-0">
-                      <img
-                        src={a.featured_image_url}
-                        alt={a.title}
-                        className="w-32 md:w-36 lg:w-40 h-24 md:h-28 lg:h-32 object-cover rounded-md"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2 flex-1 min-w-0 items-start">
-                      <Button variant="link" asChild
-                              className="text-gray-600 p-0 h-auto text-lg md:text-xl text-left font-medium justify-start">
-                        <a href={a.web_url} target="_blank" className="line-clamp-2 text-left">
-                          {a.title.slice(0, 80)}...
-                        </a>
-                      </Button>
-                      <div className="text-xs text-gray-500 italic">
-                        Published On: {new Date(a.published_at).toDateString()}
+          {/* Articles */}
+          {!isLoadingArticles && (
+            <div className="flex flex-col gap-4">
+              {articles?.data.map(a => (
+                <Card key={a.web_url} className="rounded-lg overflow-hidden">
+                  <CardContent className="p-4">
+                    {/* Mobile: Stacked layout */}
+                    <div className="flex flex-col gap-3 sm:hidden">
+                      <div className="w-full">
+                        <img
+                          src={a.featured_image_url}
+                          alt={a.title}
+                          className="w-full h-48 object-cover rounded-md"
+                        />
                       </div>
-                      <div className="text-sm md:text-base text-gray-700 line-clamp-3">
-                        <div dangerouslySetInnerHTML={{__html: a.content}}/>
+                      <div className="flex flex-col gap-2 flex-1 min-w-0">
+                        <Button variant="link" asChild
+                                className="text-gray-600 p-0 h-auto text-lg md:text-xl text-left font-medium justify-start">
+                          <a href={a.web_url} target="_blank" className="line-clamp-2 text-left">
+                            {a.title.slice(0, 80)}...
+                          </a>
+                        </Button>
+                        <div className="text-xs text-gray-500 italic">
+                          Published On: {new Date(a.published_at).toDateString()}
+                        </div>
+                        <div className="text-sm text-gray-700 line-clamp-3">
+                          <div dangerouslySetInnerHTML={{__html: a.content}}/>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+
+                    {/* Desktop: Horizontal layout */}
+                    <div className="hidden sm:flex gap-4">
+                      <div className="flex-shrink-0">
+                        <img
+                          src={a.featured_image_url}
+                          alt={a.title}
+                          className="w-32 md:w-36 lg:w-40 h-24 md:h-28 lg:h-32 object-cover rounded-md"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2 flex-1 min-w-0 items-start">
+                        <Button variant="link" asChild
+                                className="text-gray-600 p-0 h-auto text-lg md:text-xl text-left font-medium justify-start">
+                          <a href={a.web_url} target="_blank" className="line-clamp-2 text-left">
+                            {a.title.slice(0, 80)}...
+                          </a>
+                        </Button>
+                        <div className="text-xs text-gray-500 italic">
+                          Published On: {new Date(a.published_at).toDateString()}
+                        </div>
+                        <div className="text-sm md:text-base text-gray-700 line-clamp-3">
+                          <div dangerouslySetInnerHTML={{__html: a.content}}/>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+
+              {articles?.data.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  No articles found matching your criteria.
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </>
