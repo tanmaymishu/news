@@ -17,13 +17,14 @@ import {
 import {AxiosResponse} from "axios";
 import {Card, CardContent} from "@/components/ui/card";
 import {redirect, usePathname, useRouter, useSearchParams} from "next/navigation";
-import {ArrowLeft, ArrowRight, ChevronDownIcon, XIcon} from "lucide-react";
+import {ArrowLeft, ArrowRight, ChevronDownIcon, Globe, PopcornIcon, Wand, XIcon} from "lucide-react";
 import Head from "next/head";
 import {Input} from "@/components/ui/input";
 import Navbar from "@/components/navbar";
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
 import {Calendar} from '@/components/ui/calendar';
 import {Badge} from "@/components/ui/badge";
+import {Alert, AlertTitle} from "@/components/ui/alert";
 
 // Custom hook for debouncing
 function useDebounce<T>(value: T, delay: number): T {
@@ -259,7 +260,7 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
       {/* Header */}
       <Navbar user={user || undefined}/>
       {/* Filters */}
-      {mode === 'public' && <div className="mt-4">
+      <div className="mt-4">
         <div className="max-w-6xl mx-auto px-2">
           {/* Mobile: Stacked filters */}
           <div className="flex flex-col gap-3 sm:hidden">
@@ -491,14 +492,14 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
 
           </div>
         </div>
-      </div>}
+      </div>
 
       {/* Content */}
       <div className="px-4 pb-4 mt-4">
         <div className="max-w-6xl mx-auto">
           {/* Pagination */}
           {articles && (
-            <section className="flex gap-2 items-center justify-between mb-4">
+            <section className="flex gap-2 items-center justify-between">
               <Button
                 size="sm"
                 onClick={() => handlePageChange(Number(articles.links.prev?.split('page=')[1]))}
@@ -512,8 +513,6 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
                 onChange={handleKeywordChange}
                 className="flex-1 w-fit text-sm"
               />
-              {/*{mode === 'public' ? <Badge variant="outline">Public Feed</Badge> :*/}
-              {/*  <Badge variant="outline">Personalized Feed</Badge>}*/}
               <Button
                 size="sm"
                 onClick={() => handlePageChange(Number(articles.links.next?.split('page=')[1]))}
@@ -531,9 +530,16 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
             </div>
           )}
 
+
           {/* Articles */}
           {!isLoadingArticles && (
             <div className="flex flex-col gap-4">
+              <Alert className="mt-2">
+                {mode === 'public' ? <Globe/> : <Wand/>}
+                <AlertTitle>
+                  Showing {mode === 'public' ? 'Public' : 'Customized'} Newsfeed. {mode === 'customized' && 'Applying filters will take precedence over preferences.'}
+                </AlertTitle>
+              </Alert>
               {articles?.data.map(a => (
                 <Card key={a.web_url} className="rounded-lg overflow-hidden">
                   <CardContent className="p-4">
