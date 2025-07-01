@@ -260,10 +260,10 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
       <Navbar user={user || undefined}/>
       {/* Filters */}
       {mode === 'public' && <div className="mt-4">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto px-2">
           {/* Mobile: Stacked filters */}
           <div className="flex flex-col gap-3 sm:hidden">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-center justify-center gap-2">
               <Select onValueChange={handleSourceChange} value={localSource}>
                 <SelectTrigger className="text-xs">
                   <SelectValue placeholder="Source"/>
@@ -307,40 +307,78 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
                   </SelectGroup>
                 </SelectContent>
               </Select>
+
+              <Select onValueChange={handleAuthorChange} value={localAuthor}>
+                <SelectTrigger className="text-xs">
+                  <SelectValue placeholder="Author"/>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Authors</SelectLabel>
+                    {localAuthor && (
+                      <SelectItem value="-" className="flex justify-between cursor-pointer">
+                        <p>Clear Selection</p>
+                        <XIcon className="w-3 h-3"/>
+                      </SelectItem>
+                    )}
+                    {authors.map(author => (
+                      <SelectItem className="cursor-pointer" key={author.name} value={author.name}>
+                        {author.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
+            {/*<div className="hidden sm:flex items-center justify-center">*/}
+            {/*  <div className="flex flex-col gap-3">*/}
+            {/*    <Popover open={fromDateOpen} onOpenChange={setFromDateOpen}>*/}
+            {/*      <PopoverTrigger asChild>*/}
+            {/*        <Button*/}
+            {/*          variant="outline"*/}
+            {/*          className="w-48 justify-between font-normal"*/}
+            {/*        >*/}
+            {/*          {fromDate ? fromDate.toLocaleDateString() : "From"}*/}
+            {/*          <ChevronDownIcon/>*/}
+            {/*        </Button>*/}
+            {/*      </PopoverTrigger>*/}
+            {/*      <PopoverContent className="w-auto overflow-hidden p-0" align="start">*/}
+            {/*        <Calendar*/}
+            {/*          mode="single"*/}
+            {/*          selected={fromDate}*/}
+            {/*          captionLayout="dropdown"*/}
+            {/*          onSelect={handleFromDateChange}*/}
+            {/*        />*/}
+            {/*      </PopoverContent>*/}
+            {/*    </Popover>*/}
+            {/*  </div>*/}
 
-            <Select onValueChange={handleAuthorChange} value={localAuthor}>
-              <SelectTrigger className="text-xs">
-                <SelectValue placeholder="Select an author"/>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Authors</SelectLabel>
-                  {localAuthor && (
-                    <SelectItem value="-" className="flex justify-between cursor-pointer">
-                      <p>Clear Selection</p>
-                      <XIcon className="w-3 h-3"/>
-                    </SelectItem>
-                  )}
-                  {authors.map(author => (
-                    <SelectItem className="cursor-pointer" key={author.name} value={author.name}>
-                      {author.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-
-            <Input
-              placeholder="Search..."
-              value={localKeyword}
-              onChange={handleKeywordChange}
-              className="text-sm"
-            />
+            {/*  <div className="flex flex-col gap-3">*/}
+            {/*    <Popover open={toDateOpen} onOpenChange={setToDateOpen}>*/}
+            {/*      <PopoverTrigger asChild>*/}
+            {/*        <Button*/}
+            {/*          variant="outline"*/}
+            {/*          className="w-48 justify-between font-normal"*/}
+            {/*        >*/}
+            {/*          {toDate ? toDate.toLocaleDateString() : "To"}*/}
+            {/*          <ChevronDownIcon/>*/}
+            {/*        </Button>*/}
+            {/*      </PopoverTrigger>*/}
+            {/*      <PopoverContent className="w-auto overflow-hidden p-0" align="start">*/}
+            {/*        <Calendar*/}
+            {/*          mode="single"*/}
+            {/*          selected={toDate}*/}
+            {/*          captionLayout="dropdown"*/}
+            {/*          onSelect={handleToDateChange}*/}
+            {/*        />*/}
+            {/*      </PopoverContent>*/}
+            {/*    </Popover>*/}
+            {/*  </div>*/}
+            {/*</div>*/}
           </div>
 
           {/* Desktop: Horizontal filters */}
-          <div className="hidden sm:flex gap-4 items-center">
+          <div className="hidden sm:flex gap-4 items-center justify-center">
             <Select onValueChange={handleSourceChange} value={localSource}>
               <SelectTrigger className="w-[140px] md:w-[180px]">
                 <SelectValue placeholder="Select a source"/>
@@ -412,7 +450,6 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    id="date"
                     className="w-48 justify-between font-normal"
                   >
                     {fromDate ? fromDate.toLocaleDateString() : "From"}
@@ -435,7 +472,6 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    id="date"
                     className="w-48 justify-between font-normal"
                   >
                     {toDate ? toDate.toLocaleDateString() : "To"}
@@ -453,12 +489,6 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
               </Popover>
             </div>
 
-            <Input
-              placeholder="Search..."
-              value={localKeyword}
-              onChange={handleKeywordChange}
-              className="flex-1 max-w-xs"
-            />
           </div>
         </div>
       </div>}
@@ -476,8 +506,14 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
               >
                 <ArrowLeft/> Prev Page
               </Button>
-              {mode === 'public' ? <Badge variant="outline">Public Feed</Badge> :
-                <Badge variant="outline">Personalized Feed</Badge>}
+              <Input
+                placeholder="Search..."
+                value={localKeyword}
+                onChange={handleKeywordChange}
+                className="flex-1 w-fit text-sm"
+              />
+              {/*{mode === 'public' ? <Badge variant="outline">Public Feed</Badge> :*/}
+              {/*  <Badge variant="outline">Personalized Feed</Badge>}*/}
               <Button
                 size="sm"
                 onClick={() => handlePageChange(Number(articles.links.next?.split('page=')[1]))}
