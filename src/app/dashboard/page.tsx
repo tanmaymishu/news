@@ -17,10 +17,12 @@ import {
 import {AxiosResponse} from "axios";
 import {Card, CardContent} from "@/components/ui/card";
 import {redirect, usePathname, useRouter, useSearchParams} from "next/navigation";
-import {XIcon} from "lucide-react";
+import {ArrowLeft, ArrowRight, ChevronDownIcon, XIcon} from "lucide-react";
 import Head from "next/head";
 import {Input} from "@/components/ui/input";
 import Navbar from "@/components/navbar";
+import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
+import { Calendar } from '@/components/ui/calendar';
 
 const baseUrl = `/api/v1/articles`;
 
@@ -52,6 +54,8 @@ function useUrlState() {
     source: searchParams.get('source') ?? '',
     category: searchParams.get('category') ?? '',
     author: searchParams.get('author') ?? '',
+    fromDate: searchParams.get('from_date') ?? '',
+    toDate: searchParams.get('to_date') ?? '',
     page: parseInt(searchParams.get('page') ?? '1', 10)
   }), [searchParams]);
 
@@ -65,6 +69,8 @@ function useUrlState() {
     if (updatedFilters.source) params.set('source', updatedFilters.source);
     if (updatedFilters.category) params.set('category', updatedFilters.category);
     if (updatedFilters.author) params.set('author', updatedFilters.author);
+    if (updatedFilters.fromDate) params.set('from_date', updatedFilters.fromDate);
+    if (updatedFilters.toDate) params.set('to_date', updatedFilters.toDate);
     if (updatedFilters.page > 1) params.set('page', updatedFilters.page.toString());
 
     const queryString = params.toString();
@@ -85,6 +91,10 @@ function DashboardPage() {
   const [localSource, setLocalSource] = useState(filters.source);
   const [localCategory, setLocalCategory] = useState(filters.category);
   const [localAuthor, setLocalAuthor] = useState(filters.author);
+  const [fromDateOpen, setFromDateOpen] = useState(false)
+  const [toDateOpen, setToDateOpen] = useState(false)
+  const [fromDate, setFromDate] = useState<Date | undefined>(new Date())
+  const [toDate, setToDate] = useState<Date | undefined>(new Date())
 
   // Debounced keyword for API calls
   const debouncedKeyword = useDebounce(localKeyword, 500);
@@ -103,6 +113,8 @@ function DashboardPage() {
     setLocalSource(filters.source);
     setLocalCategory(filters.category);
     setLocalAuthor(filters.author);
+    setFromDate(filters.fromDate ? new Date(filters.fromDate) : new Date());
+    setToDate(filters.toDate ? new Date(filters.toDate) : new Date());
   }, [filters]);
 
   // Update URL when filters change (debounced for keyword)
@@ -119,6 +131,8 @@ function DashboardPage() {
     if (filters.source) params.set('source', filters.source);
     if (filters.category) params.set('category', filters.category);
     if (filters.author) params.set('author', filters.author);
+    if (filters.fromDate) params.set('from_date', filters.fromDate);
+    if (filters.toDate) params.set('to_date', filters.toDate);
     if (filters.page > 1) params.set('page', filters.page.toString());
 
     return `${baseUrl}?${params.toString()}`;
@@ -183,6 +197,22 @@ function DashboardPage() {
     const newValue = value === '-' ? '' : value;
     setLocalAuthor(newValue);
     updateUrl({author: newValue, page: 1});
+  }, [updateUrl]);
+
+  const handleFromDateChange = useCallback((date: Date | undefined) => {
+    if (date) {
+      setFromDate(date);
+      updateUrl({fromDate: date.toISOString(), page: 1});
+      setFromDateOpen(false);
+    }
+  }, [updateUrl]);
+
+  const handleToDateChange = useCallback((date: Date | undefined) => {
+    if (date) {
+      setToDate(date);
+      updateUrl({toDate: date.toISOString(), page: 1});
+      setToDateOpen(false);
+    }
   }, [updateUrl]);
 
   const handleKeywordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -297,7 +327,7 @@ function DashboardPage() {
             </Select>
 
             <Input
-              placeholder="Search with keyword..."
+              placeholder="Search..."
               value={localKeyword}
               onChange={handleKeywordChange}
               className="text-sm"
@@ -372,8 +402,54 @@ function DashboardPage() {
               </SelectContent>
             </Select>
 
+            <div className="flex flex-col gap-3">
+              <Popover open={fromDateOpen} onOpenChange={setFromDateOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    id="date"
+                    className="w-48 justify-between font-normal"
+                  >
+                    {fromDate ? fromDate.toLocaleDateString() : "From"}
+                    <ChevronDownIcon />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={fromDate}
+                    captionLayout="dropdown"
+                    onSelect={handleFromDateChange}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <Popover open={toDateOpen} onOpenChange={setToDateOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    id="date"
+                    className="w-48 justify-between font-normal"
+                  >
+                    {toDate ? toDate.toLocaleDateString() : "To"}
+                    <ChevronDownIcon />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={toDate}
+                    captionLayout="dropdown"
+                    onSelect={handleToDateChange}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
             <Input
-              placeholder="Search with keyword..."
+              placeholder="Search..."
               value={localKeyword}
               onChange={handleKeywordChange}
               className="flex-1 max-w-xs"
@@ -387,20 +463,21 @@ function DashboardPage() {
         <div className="max-w-6xl mx-auto">
           {/* Pagination */}
           {articles && (
-            <section className="flex gap-2 justify-center mb-4">
+            <section className="flex gap-2 items-center justify-between mb-4">
               <Button
                 size="sm"
                 onClick={() => handlePageChange(Number(articles.links.prev?.split('page=')[1]))}
                 disabled={!articles.links.prev || paginating}
               >
-                Prev Page
+                <ArrowLeft/> Prev Page
               </Button>
+              <p>Articles</p>
               <Button
                 size="sm"
                 onClick={() => handlePageChange(Number(articles.links.next?.split('page=')[1]))}
                 disabled={!articles.links.next || paginating}
               >
-                Next Page
+                Next Page <ArrowRight/>
               </Button>
             </section>
           )}
