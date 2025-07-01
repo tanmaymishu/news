@@ -4,33 +4,45 @@ import {Card, CardContent, CardFooter, CardHeader, CardTitle} from "@/components
 import {Input} from "@/components/ui/input";
 import {Label} from "@/components/ui/label";
 import {Button} from "@/components/ui/button";
-import {isAxiosError} from "@/lib/axios";
 import {AuthContext} from "@/contexts/auth-context";
-import {Checkbox} from "@/components/ui/checkbox";
 import Image from "next/image";
 import Link from "next/link";
 import {cn} from "@/lib/utils";
+import axios, {isAxiosError} from "@/lib/axios";
+import {toast} from "sonner";
+import {redirect, useSearchParams} from "next/navigation";
 
-function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
+function ResetPasswordPage() {
+  const searchParams = useSearchParams();
+  const token = searchParams.get('token');
+  const email = searchParams.get('email');
+
   const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(false);
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [loading, setLoading] = useState(false);
+  const {isLoggedIn} = useContext(AuthContext);
   const [errors, setErrors] = useState({
+    token: [],
     email: [],
-    password: []
+    password: [],
   });
-  const {isLoggedIn, logIn} = useContext(AuthContext);
 
-  async function handleLogin(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setLoading(true);
 
     try {
-      await logIn(email, password, remember);
+      const resp = await axios.post('/api/v1/reset-password', {
+        token, email, password, password_confirmation: passwordConfirmation
+      });
+      setPassword('');
+      setPasswordConfirmation('')
+      redirect('/login');
+      toast.success(resp.data.message);
     } catch (e: unknown) {
       if (isAxiosError(e) && e.status === 422) {
-        setErrors(e.response?.data.errors);
+        console.log(e);
+        setErrors(e?.response?.data.errors);
       }
     } finally {
       setLoading(false);
@@ -53,27 +65,13 @@ function LoginPage() {
                 />
               </div>
               <CardTitle className="text-lg sm:text-xl md:text-2xl">
-                Sign in to your account
+                Reset Password
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 sm:px-6">
-              <form className="flex flex-col gap-4" onSubmit={handleLogin}>
+              <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                  <Label className="text-sm sm:text-base">E-mail</Label>
-                  <Input
-                    required={true}
-                    type="email"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    className="text-sm sm:text-base"
-                  />
-                  {errors.email.length > 0 && (
-                    <p className="text-xs text-red-600">{errors.email.join(', ')}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm sm:text-base">Password</Label>
+                  <Label className="text-sm sm:text-base">New Password</Label>
                   <Input
                     required={true}
                     type="password"
@@ -81,28 +79,37 @@ function LoginPage() {
                     onChange={e => setPassword(e.target.value)}
                     className="text-sm sm:text-base"
                   />
-                  {errors.password.length > 0 && (
+                  {errors.password?.length > 0 && (
                     <p className="text-xs text-red-600">{errors.password.join(', ')}</p>
                   )}
                 </div>
 
-                <Label className="cursor-pointer flex items-center gap-2 text-sm sm:text-base">
-                  <Checkbox onClick={e => setRemember(!!e.currentTarget.ariaChecked)}/>
-                  Remember Me
-                </Label>
+                <div className="space-y-2">
+                  <Label className="text-sm sm:text-base">Confirm Password</Label>
+                  <Input
+                    required={true}
+                    type="password"
+                    value={passwordConfirmation}
+                    onChange={e => setPasswordConfirmation(e.target.value)}
+                    className="text-sm sm:text-base"
+                  />
+                  {errors.password?.length > 0 && (
+                    <p className="text-xs text-red-600">{errors.password.join(', ')}</p>
+                  )}
+                  {errors.email?.length > 0 && (
+                    <p className="text-xs text-red-600">{errors.email.join(', ')}</p>
+                  )}
+                </div>
 
                 <Button className={cn("w-full mt-2 text-sm sm:text-base py-2 sm:py-3")} disabled={loading}>
-                  Login
+                  Reset Password
                 </Button>
               </form>
             </CardContent>
-            <CardFooter className="flex flex-col justify-center px-4 sm:px-6">
+            <CardFooter className="flex justify-center px-4 sm:px-6">
               <Button variant="link" asChild className="text-xs sm:text-sm text-center">
-                <Link href="/forgot-password">Forgot Password?</Link>
-              </Button>
-              <Button variant="link" asChild className="text-xs sm:text-sm text-center">
-                <Link href="/register">
-                  Don&#39;t have an account yet? Register now!
+                <Link href="/login">
+                  Login
                 </Link>
               </Button>
             </CardFooter>
@@ -113,4 +120,4 @@ function LoginPage() {
   );
 }
 
-export default LoginPage;
+export default ResetPasswordPage;
