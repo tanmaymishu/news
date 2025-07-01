@@ -22,9 +22,8 @@ import Head from "next/head";
 import {Input} from "@/components/ui/input";
 import Navbar from "@/components/navbar";
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
-import { Calendar } from '@/components/ui/calendar';
-
-const baseUrl = `/api/v1/articles`;
+import {Calendar} from '@/components/ui/calendar';
+import {Badge} from "@/components/ui/badge";
 
 // Custom hook for debouncing
 function useDebounce<T>(value: T, delay: number): T {
@@ -82,7 +81,13 @@ function useUrlState() {
   return {filters, updateUrl};
 }
 
-function DashboardPage() {
+interface NewsfeedProps {
+  mode: 'public' | 'customized';
+  articleUrl: string;
+}
+
+function Newsfeed({mode, articleUrl}: NewsfeedProps) {
+
   const {isLoggedIn, user, loading} = useContext(AuthContext);
   const {filters, updateUrl} = useUrlState();
 
@@ -93,8 +98,8 @@ function DashboardPage() {
   const [localAuthor, setLocalAuthor] = useState(filters.author);
   const [fromDateOpen, setFromDateOpen] = useState(false)
   const [toDateOpen, setToDateOpen] = useState(false)
-  const [fromDate, setFromDate] = useState<Date | undefined>(new Date())
-  const [toDate, setToDate] = useState<Date | undefined>(new Date())
+  const [fromDate, setFromDate] = useState<Date | undefined>(undefined)
+  const [toDate, setToDate] = useState<Date | undefined>(undefined)
 
   // Debounced keyword for API calls
   const debouncedKeyword = useDebounce(localKeyword, 500);
@@ -135,7 +140,7 @@ function DashboardPage() {
     if (filters.toDate) params.set('to_date', filters.toDate);
     if (filters.page > 1) params.set('page', filters.page.toString());
 
-    return `${baseUrl}?${params.toString()}`;
+    return `${articleUrl}?${params.toString()}`;
   }, [filters]);
 
   // Fetch initial data (memoized to prevent unnecessary re-fetches)
@@ -234,15 +239,15 @@ function DashboardPage() {
   }, [fetchArticles]);
 
   // Auth redirects
-  if (!isLoggedIn) {
+  if (mode === 'customized' && !isLoggedIn) {
     redirect('/login');
   }
 
-  if (loading) {
+  if (mode === 'customized' && loading) {
     return <div>Loading...</div>;
   }
 
-  if (!isLoggedIn || !user) {
+  if (mode === 'customized' && (!isLoggedIn || !user)) {
     return <div>Redirecting to login...</div>;
   }
 
@@ -252,9 +257,9 @@ function DashboardPage() {
         <title>Dashboard</title>
       </Head>
       {/* Header */}
-      <Navbar user={user}/>
+      <Navbar user={user || undefined}/>
       {/* Filters */}
-      <div className="px-4 py-4">
+      {mode === 'public' && <div className="mt-4">
         <div className="max-w-6xl mx-auto">
           {/* Mobile: Stacked filters */}
           <div className="flex flex-col gap-3 sm:hidden">
@@ -411,7 +416,7 @@ function DashboardPage() {
                     className="w-48 justify-between font-normal"
                   >
                     {fromDate ? fromDate.toLocaleDateString() : "From"}
-                    <ChevronDownIcon />
+                    <ChevronDownIcon/>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto overflow-hidden p-0" align="start">
@@ -434,7 +439,7 @@ function DashboardPage() {
                     className="w-48 justify-between font-normal"
                   >
                     {toDate ? toDate.toLocaleDateString() : "To"}
-                    <ChevronDownIcon />
+                    <ChevronDownIcon/>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto overflow-hidden p-0" align="start">
@@ -456,10 +461,10 @@ function DashboardPage() {
             />
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Content */}
-      <div className="px-4 pb-4">
+      <div className="px-4 pb-4 mt-4">
         <div className="max-w-6xl mx-auto">
           {/* Pagination */}
           {articles && (
@@ -471,7 +476,8 @@ function DashboardPage() {
               >
                 <ArrowLeft/> Prev Page
               </Button>
-              <p>Articles</p>
+              {mode === 'public' ? <Badge variant="outline">Public Feed</Badge> :
+                <Badge variant="outline">Personalized Feed</Badge>}
               <Button
                 size="sm"
                 onClick={() => handlePageChange(Number(articles.links.next?.split('page=')[1]))}
@@ -507,15 +513,22 @@ function DashboardPage() {
                       <div className="flex flex-col gap-2 flex-1 min-w-0">
                         <Button variant="link" asChild
                                 className="text-gray-600 p-0 h-auto text-lg md:text-xl text-left font-medium justify-start">
-                          <a href={a.web_url} target="_blank" className="line-clamp-2 text-left">
+                          <a href={'/articles/' + a.id} className="line-clamp-2 text-left">
                             {a.title.slice(0, 80)}...
                           </a>
                         </Button>
+                        <div className="text-gray-600 text-sm font-bold">
+                          Author: {a.author}
+                        </div>
+                        <div className="text-sm md:text-base text-gray-700 line-clamp-3">
+                          <div dangerouslySetInnerHTML={{__html: a.content}}/>
+                        </div>
                         <div className="text-xs text-gray-500 italic">
                           Published On: {new Date(a.published_at).toDateString()}
                         </div>
-                        <div className="text-sm text-gray-700 line-clamp-3">
-                          <div dangerouslySetInnerHTML={{__html: a.content}}/>
+                        <div className="flex gap-2">
+                          <Badge>{a.category}</Badge>
+                          <Badge variant="secondary">{a.source}</Badge>
                         </div>
                       </div>
                     </div>
@@ -532,15 +545,22 @@ function DashboardPage() {
                       <div className="flex flex-col gap-2 flex-1 min-w-0 items-start">
                         <Button variant="link" asChild
                                 className="text-gray-600 p-0 h-auto text-lg md:text-xl text-left font-medium justify-start">
-                          <a href={a.web_url} target="_blank" className="line-clamp-2 text-left">
+                          <a href={'/articles/' + a.id} className="line-clamp-2 text-left">
                             {a.title.slice(0, 80)}...
                           </a>
                         </Button>
-                        <div className="text-xs text-gray-500 italic">
-                          Published On: {new Date(a.published_at).toDateString()}
+                        <div className="text-gray-600 text-sm font-bold">
+                          Author: {a.author}
                         </div>
                         <div className="text-sm md:text-base text-gray-700 line-clamp-3">
                           <div dangerouslySetInnerHTML={{__html: a.content}}/>
+                        </div>
+                        <div className="text-xs text-gray-500 italic">
+                          Published On: {new Date(a.published_at).toDateString()}
+                        </div>
+                        <div className="flex gap-2">
+                          <Badge>{a.category}</Badge>
+                          <Badge variant="secondary">{a.source}</Badge>
                         </div>
                       </div>
                     </div>
@@ -561,4 +581,4 @@ function DashboardPage() {
   );
 }
 
-export default DashboardPage;
+export default Newsfeed;

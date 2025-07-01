@@ -77,7 +77,7 @@ function AuthContextProvider({children}: { children: React.ReactNode }) {
       await axios.get('/sanctum/csrf-cookie');
       await axios.post('/api/v1/login', {email, password, remember});
       await fetchUser();
-      router.replace('/dashboard');
+      router.replace('/');
     } catch (error) {
       throw error; // Re-throw so the login form can handle it
     }
@@ -109,7 +109,7 @@ function AuthContextProvider({children}: { children: React.ReactNode }) {
 
     // Only redirect authenticated users away from login/register pages
     if (isLoggedIn && user && (pathname === '/login' || pathname === '/register')) {
-      router.replace('/dashboard');
+      router.replace('/');
     }
   }, [loading, isLoggedIn, user, pathname, router]);
 

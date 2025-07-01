@@ -9,24 +9,26 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {Button} from "@/components/ui/button";
 import {User2Icon} from "lucide-react";
-import {redirect} from "next/navigation";
+import {redirect, usePathname} from "next/navigation";
 import {AuthContext, User} from "@/contexts/auth-context";
 import Link from "next/link";
 
 interface NavbarProps {
-  user: User;
+  user?: User;
 }
 
 function Navbar({user}: NavbarProps) {
+  const pathname = usePathname();
+
   const {logOut} = useContext(AuthContext);
 
   return (
     <div
       className="flex border-b py-2 sm:py-4 px-4 items-center justify-between shadow sticky top-0 w-full bg-white z-50">
       <div className="flex items-center">
-        <Link href={"/dashboard"}>
+        <Link href={"/"}>
           <Image
-            src="logo.svg"
+            src="/logo.svg"
             alt="NewsFlow Logo"
             width={180}
             height={5}
@@ -35,26 +37,37 @@ function Navbar({user}: NavbarProps) {
         </Link>
       </div>
       <div className="flex items-center gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline">
-              <User2Icon></User2Icon>
-              My Account
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="start">
-            <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
-            <DropdownMenuGroup>
-              <DropdownMenuItem className="cursor-pointer" onClick={() => redirect('/preferences')}>
-                Preferences
+        {user ? <>
+          <Button variant="secondary" asChild>
+            {pathname === '/articles' ? <Link href="/">Public Feed</Link> : <Link href="/articles">Custom Feed</Link>}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <User2Icon></User2Icon>
+                Account
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="start">
+              <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
+              <DropdownMenuGroup>
+                <DropdownMenuItem className="cursor-pointer" onClick={() => redirect('/preferences')}>
+                  Preferences
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator/>
+              <DropdownMenuItem className="cursor-pointer" onClick={logOut}>
+                Log out
               </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator/>
-            <DropdownMenuItem className="cursor-pointer" onClick={logOut}>
-              Log out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </DropdownMenuContent>
+          </DropdownMenu></> : <>
+          <Button variant="ghost" asChild>
+            <Link href="/login">Login</Link>
+          </Button>
+          <Button variant="ghost">
+            <Link href="/register">Register</Link>
+          </Button>
+        </>}
       </div>
     </div>
   );

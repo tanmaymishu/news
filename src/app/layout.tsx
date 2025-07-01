@@ -1,10 +1,10 @@
 'use client';
 
 // import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import {Geist, Geist_Mono} from "next/font/google";
 import "./globals.css";
 import AuthContextProvider from "@/contexts/auth-context";
-import { Toaster } from "@/components/ui/sonner";
+import {Toaster} from "@/components/ui/sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,20 +22,23 @@ const geistMono = Geist_Mono({
 // };
 
 export default function RootLayout({
-  children,
-}: Readonly<{
+                                     children,
+                                   }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
-      >
-        <AuthContextProvider>
-          {children}
-          <Toaster />
-        </AuthContextProvider>
-      </body>
+    <body
+      className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
+    >
+    <AuthContextProvider>
+      {children}
+      <Toaster/>
+    </AuthContextProvider>
+    <footer className="text-center">
+      <p className="text-sm">(c) {new Date().getFullYear()}, NewsFlow.</p>
+    </footer>
+    </body>
     </html>
   );
 }
