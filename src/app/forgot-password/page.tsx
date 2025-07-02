@@ -26,7 +26,7 @@ function ForgotPasswordPage() {
     try {
       const resp = await axios.post('/api/v1/forgot-password', {email});
       setEmail('');
-      toast.success(resp.data.status);
+      toast.success(resp.data.message);
     } catch (e: unknown) {
       if (isAxiosError(e) && e.status === 422) {
         console.log(e);

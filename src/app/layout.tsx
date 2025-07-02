@@ -35,9 +35,6 @@ export default function RootLayout({
       {children}
       <Toaster/>
     </AuthContextProvider>
-    <footer className="text-center">
-      <p className="text-sm">(c) {new Date().getFullYear()}, NewsFlow.</p>
-    </footer>
     </body>
     </html>
   );

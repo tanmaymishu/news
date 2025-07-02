@@ -17,7 +17,7 @@ import {
 import {AxiosResponse} from "axios";
 import {Card, CardContent} from "@/components/ui/card";
 import {redirect, usePathname, useRouter, useSearchParams} from "next/navigation";
-import {ArrowLeft, ArrowRight, ChevronDownIcon, Globe, PopcornIcon, Wand, XIcon} from "lucide-react";
+import {ArrowLeft, ArrowRight, ChevronDownIcon, Globe, Wand, XIcon} from "lucide-react";
 import Head from "next/head";
 import {Input} from "@/components/ui/input";
 import Navbar from "@/components/navbar";
