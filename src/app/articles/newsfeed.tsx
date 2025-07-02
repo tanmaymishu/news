@@ -25,6 +25,7 @@ import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
 import {Calendar} from '@/components/ui/calendar';
 import {Badge} from "@/components/ui/badge";
 import {Alert, AlertTitle} from "@/components/ui/alert";
+import Link from "next/link";
 
 // Custom hook for debouncing
 function useDebounce<T>(value: T, delay: number): T {
@@ -553,17 +554,13 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
                         />
                       </div>
                       <div className="flex flex-col gap-2 flex-1 min-w-0">
-                        <Button variant="link" asChild
-                                className="text-gray-600 p-0 h-auto text-lg md:text-xl text-left font-medium justify-start">
-                          <a href={'/articles/' + a.id} className="line-clamp-2 text-left">
-                            {a.title.slice(0, 80)}...
-                          </a>
-                        </Button>
+                        <section className="text-xl md:text-base font-bold text-gray-600 hover:underline">
+                          <Link href={'/articles/' + a.id} className="text-xl text-left">
+                            {a.title}
+                          </Link>
+                        </section>
                         <div className="text-gray-600 text-sm font-bold">
-                          Author: {a.author}
-                        </div>
-                        <div className="text-sm md:text-base text-gray-700 line-clamp-3">
-                          <div dangerouslySetInnerHTML={{__html: a.content}}/>
+                          By: {a.author}
                         </div>
                         <div className="text-xs text-gray-500 italic">
                           Published On: {new Date(a.published_at).toDateString()}
@@ -585,25 +582,24 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
                         />
                       </div>
                       <div className="flex flex-col gap-2 flex-1 min-w-0 items-start">
-                        <Button variant="link" asChild
-                                className="text-gray-600 p-0 h-auto text-lg md:text-xl text-left font-medium justify-start">
-                          <a href={'/articles/' + a.id} className="line-clamp-2 text-left">
-                            {a.title.slice(0, 80)}...
-                          </a>
-                        </Button>
-                        <div className="text-gray-600 text-sm font-bold">
-                          Author: {a.author}
-                        </div>
-                        <div className="text-sm md:text-base text-gray-700 line-clamp-3">
-                          <div dangerouslySetInnerHTML={{__html: a.content}}/>
-                        </div>
-                        <div className="text-xs text-gray-500 italic">
+                        <section className="text-xl md:text-base font-bold text-gray-600 hover:underline">
+                          <Link href={'/articles/' + a.id} className="text-xl text-left">
+                            {a.title}
+                          </Link>
+                        </section>
+                        <section className="text-gray-600 font-semibold text-sm">
+                          By: {a.author}
+                        </section>
+                        {/*<div className="text-sm md:text-base text-gray-700">*/}
+                        {/*  <div dangerouslySetInnerHTML={{__html: a.content}}/>*/}
+                        {/*</div>*/}
+                        <section className="text-xs text-gray-500 italic">
                           Published On: {new Date(a.published_at).toDateString()}
-                        </div>
-                        <div className="flex gap-2">
+                        </section>
+                        <section className="flex gap-2">
                           <Badge>{a.category}</Badge>
                           <Badge variant="secondary">{a.source}</Badge>
-                        </div>
+                        </section>
                       </div>
                     </div>
                   </CardContent>

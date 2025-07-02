@@ -45,17 +45,16 @@ function ArticlePage() {
   return (
     <>
       <Navbar user={user || undefined}/>
-      {loading ? <p className="text-center">Loading...</p> : <Card className="w-1/2 mx-auto my-5">
+      {loading ? <p className="text-center">Loading...</p> : <Card className="rounded-sm mx-4 md:mx-auto md:container lg:w-1/2 my-5">
         <CardHeader>
           <CardTitle>{article?.title}</CardTitle>
           <CardDescription>By: {article?.author}</CardDescription>
         </CardHeader>
-        <CardContent className="flex gap-4">
+        <CardContent className="flex flex-col gap-4 items-center">
           <section>
-            <img src={article?.featured_image_url || "https://placehold.co/600x400/png"} height={300} width={400}/>
+            <img src={article?.featured_image_url || "https://placehold.co/600x400/png"} className="object-cover"/>
           </section>
           <section className="flex flex-col justify-between gap-4">
-            <p>{article?.content}</p>
             <div className="text-sm md:text-base text-gray-700 line-clamp-3">
               <div dangerouslySetInnerHTML={{__html: article?.content || ""}}/>
             </div>
@@ -66,7 +65,7 @@ function ArticlePage() {
               <Badge>{article?.category}</Badge>
               <Badge variant="secondary">{article?.source}</Badge>
             </div>
-            <div><Button variant="default" size="sm" asChild><a target="_blank" href={article?.web_url}>Read Full
+            <div><Button variant="link" size="sm" asChild className="pl-0"><a target="_blank" href={article?.web_url}>Read Full
               Article</a></Button></div>
           </section>
         </CardContent>
