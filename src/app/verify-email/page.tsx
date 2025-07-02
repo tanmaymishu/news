@@ -7,7 +7,6 @@ import {toast} from "sonner";
 
 function Forbidden() {
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{[key: string]: string[]}>();
 
   async function sendVerificationLink() {
     try {
@@ -17,7 +16,6 @@ function Forbidden() {
     } catch (e: unknown) {
       console.log(e);
       if (isAxiosError(e)) {
-        setErrors(e.response?.data.errors);
         toast.error(e.response?.data.errors);
       } else {
         toast.error((e as Error).message);

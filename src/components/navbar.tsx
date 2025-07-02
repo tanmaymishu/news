@@ -8,11 +8,10 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import {Button} from "@/components/ui/button";
-import {Globe, Newspaper, User2Icon, Wand} from "lucide-react";
+import {Newspaper, User2Icon} from "lucide-react";
 import {redirect, usePathname} from "next/navigation";
 import {AuthContext, User} from "@/contexts/auth-context";
 import Link from "next/link";
-import {Badge} from "@/components/ui/badge";
 
 interface NavbarProps {
   user?: User;
