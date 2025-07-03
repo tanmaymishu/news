@@ -26,7 +26,6 @@ import {Calendar} from '@/components/ui/calendar';
 import {Badge} from "@/components/ui/badge";
 import {Alert, AlertTitle} from "@/components/ui/alert";
 import Link from "next/link";
-import {undefined} from "zod";
 
 // Custom hook for debouncing
 function useDebounce<T>(value: T, delay: number): T {
@@ -101,8 +100,8 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
   const [localAuthor, setLocalAuthor] = useState(filters.author);
   const [fromDateOpen, setFromDateOpen] = useState(false)
   const [toDateOpen, setToDateOpen] = useState(false)
-  const [fromDate, setFromDate] = useState<Date | undefined>(undefined)
-  const [toDate, setToDate] = useState<Date | undefined>(undefined)
+  const [fromDate, setFromDate] = useState<Date | undefined>(new Date())
+  const [toDate, setToDate] = useState<Date | undefined>(new Date())
 
   // Debounced keyword for API calls
   const debouncedKeyword = useDebounce(localKeyword, 500);
@@ -264,7 +263,7 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
         <title>Dashboard</title>
       </Head>
       {/* Header */}
-      <Navbar user={user || undefined}/>
+      <Navbar user={user!}/>
       {/* Filters */}
       <div className="mt-4">
         <div className="max-w-6xl mx-auto px-2">
