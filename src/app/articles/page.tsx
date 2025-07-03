@@ -7,7 +7,7 @@ function ArticlesPage() {
   const {isLoggedIn} = useAuth();
 
   if (isLoggedIn) {
-    return <Newsfeed mode="customized" articleUrl="/api/v1/own-articles"/>
+    return <Newsfeed mode="personalized" articleUrl="/api/v1/own-articles"/>
   }
 
   return <Newsfeed mode="public" articleUrl="/api/v1/articles"/>
