@@ -39,7 +39,7 @@ function Navbar({user}: NavbarProps) {
       <div className="flex items-center gap-2">
         {user ? <>
           <Button variant="secondary" asChild>
-            {pathname === '/articles' ? <Link href="/"><Newspaper/>Public Feed</Link> : <Link href="/articles"><Newspaper/>Custom Feed</Link>}
+            {pathname === '/articles' ? <Link href="/"><Newspaper/>Public Feed</Link> : <Link href="/articles"><Newspaper/>Personalized Feed</Link>}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

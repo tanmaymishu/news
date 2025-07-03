@@ -84,7 +84,7 @@ function useUrlState() {
 }
 
 interface NewsfeedProps {
-  mode: 'public' | 'customized';
+  mode: 'public' | 'personalized';
   articleUrl: string;
 }
 
@@ -241,15 +241,15 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
   }, [fetchArticles]);
 
   // Auth redirects
-  if (mode === 'customized' && !isLoggedIn) {
+  if (mode === 'personalized' && !isLoggedIn) {
     redirect('/login');
   }
 
-  if (mode === 'customized' && loading) {
+  if (mode === 'personalized' && loading) {
     return <div>Loading...</div>;
   }
 
-  if (mode === 'customized' && (!isLoggedIn || !user)) {
+  if (mode === 'personalized' && (!isLoggedIn || !user)) {
     return <div>Redirecting to login...</div>;
   }
 
@@ -538,7 +538,7 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
               <Alert className="mt-2">
                 {mode === 'public' ? <Globe/> : <Wand/>}
                 <AlertTitle>
-                  Showing {mode === 'public' ? 'Public' : 'Customized'} Newsfeed. {mode === 'customized' && 'Applying filters will take precedence over preferences.'}
+                  Showing {mode === 'public' ? 'Public' : 'Personalized'} Newsfeed. {mode === 'personalized' && 'Applying filters will take precedence over preferences.'}
                 </AlertTitle>
               </Alert>
               {articles?.data.map(a => (
