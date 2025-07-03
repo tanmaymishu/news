@@ -17,7 +17,7 @@ import {
 import {AxiosResponse} from "axios";
 import {Card, CardContent} from "@/components/ui/card";
 import {redirect, usePathname, useRouter, useSearchParams} from "next/navigation";
-import {ArrowLeft, ArrowRight, ChevronDownIcon, Globe, Wand, XIcon} from "lucide-react";
+import {ArrowLeft, ArrowRight, ChevronDownIcon, Delete, Globe, Wand, XIcon} from "lucide-react";
 import Head from "next/head";
 import {Input} from "@/components/ui/input";
 import Navbar from "@/components/navbar";
@@ -26,6 +26,7 @@ import {Calendar} from '@/components/ui/calendar';
 import {Badge} from "@/components/ui/badge";
 import {Alert, AlertTitle} from "@/components/ui/alert";
 import Link from "next/link";
+import {undefined} from "zod";
 
 // Custom hook for debouncing
 function useDebounce<T>(value: T, delay: number): T {
@@ -231,6 +232,10 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
     updateUrl({page: newPage});
   }, [updateUrl]);
 
+  const clearFilters = () => {
+    updateUrl({source: '', author: '', category: '', fromDate: '', toDate: ''});
+  }
+
   // Effects
   useEffect(() => {
     fetchInitialData();
@@ -331,6 +336,9 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
                   </SelectGroup>
                 </SelectContent>
               </Select>
+              <Button variant="secondary" onClick={clearFilters}>
+                <Delete/>Clear
+              </Button>
             </div>
             {/*<div className="hidden sm:flex items-center justify-center">*/}
             {/*  <div className="flex flex-col gap-3">*/}
@@ -454,7 +462,7 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
                     variant="outline"
                     className="w-48 justify-between font-normal"
                   >
-                    {fromDate ? fromDate.toLocaleDateString() : "From"}
+                    {fromDate instanceof Date ? fromDate.toLocaleDateString() : "From"}
                     <ChevronDownIcon/>
                   </Button>
                 </PopoverTrigger>
@@ -476,7 +484,7 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
                     variant="outline"
                     className="w-48 justify-between font-normal"
                   >
-                    {toDate ? toDate.toLocaleDateString() : "To"}
+                    {toDate instanceof Date ? toDate.toLocaleDateString() : "To"}
                     <ChevronDownIcon/>
                   </Button>
                 </PopoverTrigger>
@@ -491,6 +499,11 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
               </Popover>
             </div>
 
+            <div className="flex flex-col gap-3">
+              <Button variant="secondary" onClick={clearFilters}>
+                <Delete/>Clear
+              </Button>
+            </div>
           </div>
         </div>
       </div>
