@@ -17,7 +17,16 @@ import {
 import {AxiosResponse} from "axios";
 import {Card, CardContent} from "@/components/ui/card";
 import {redirect, usePathname, useRouter, useSearchParams} from "next/navigation";
-import {ArrowLeft, ArrowRight, ChevronDownIcon, Delete, Globe, Wand, XIcon} from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  ChevronDownIcon,
+  Delete,
+  Globe,
+  User2Icon,
+  Wand,
+  XIcon
+} from "lucide-react";
 import Head from "next/head";
 import {Input} from "@/components/ui/input";
 import Navbar from "@/components/navbar";
@@ -571,8 +580,8 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
                             {a.title}
                           </Link>
                         </section>
-                        <div className="text-gray-600 text-sm font-bold">
-                          By: {a.author}
+                        <div className="flex text-gray-600 text-sm font-bold">
+                          <User2Icon height={18}/>{a.author}
                         </div>
                         <div className="text-xs text-gray-500 italic">
                           Published On: {new Date(a.published_at).toDateString()}
@@ -599,8 +608,8 @@ function Newsfeed({mode, articleUrl}: NewsfeedProps) {
                             {a.title}
                           </Link>
                         </section>
-                        <section className="text-gray-600 font-semibold text-sm">
-                          By: {a.author}
+                        <section className="flex text-gray-600 font-semibold text-sm">
+                          <User2Icon height={18}/>{a.author}
                         </section>
                         {/*<div className="text-sm md:text-base text-gray-700">*/}
                         {/*  <div dangerouslySetInnerHTML={{__html: a.content}}/>*/}
